@@ -51,6 +51,7 @@ EOF
       else
         echo "Failed to connect, error:"
         cat $log_path
+        exit 1
       fi
     else
       echo "VPN opening tunnel failed!"
@@ -78,6 +79,7 @@ EOF
       else
         echo "Failed to connect, error:"
         cat $log_path
+        exit 1
       fi
     else
       echo "VPN opening tunnel failed!"
