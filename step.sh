@@ -1,6 +1,17 @@
 #!/bin/bash
 set -eu
 
+echo "Configs:"
+
+echo "host: $host"
+echo "port: $port"
+echo "proto: $proto"
+echo "ca_crt: $(if [ ! -z $ca_crt ]; then echo "***"; fi)"
+echo "client_crt: $(if [ ! -z $client_crt ]; then echo "***"; fi)"
+echo "client_key: $(if [ ! -z $client_key ]; then echo "***"; fi)"
+
+echo ""
+
 case "$OSTYPE" in
   linux*)
     echo "Configuring for Ubuntu"
