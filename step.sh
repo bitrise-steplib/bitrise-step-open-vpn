@@ -12,6 +12,8 @@ echo "client_key: $(if [ ! -z $client_key ]; then echo "***"; fi)"
 
 echo ""
 
+log_path=$(mktemp)
+
 case "$OSTYPE" in
   linux*)
     echo "Configuring for Ubuntu"
@@ -36,7 +38,7 @@ cert client.crt
 key client.key
 EOF
 
-    service openvpn start client > /dev/null 2>&1
+    service openvpn start client > $log_path 2>&1
     sleep 5
 
     if ifconfig | grep tun0 > /dev/null
@@ -44,8 +46,12 @@ EOF
       echo "VPN tunnel opened successfully"
       echo ""
       echo "Test VPN connection"
-      ping -c 1 -t 5 10.1.0.1
-      echo "Connection alive"
+      if ping -c 1 -t 5 10.1.0.1 ; then
+        echo "Connection alive"
+      else
+        echo "Failed to connect, error:"
+        cat $log_path
+      fi
     else
       echo "VPN opening tunnel failed!"
       exit 1
@@ -58,7 +64,7 @@ EOF
     echo ${client_crt} | base64 -D -o client.crt > /dev/null 2>&1
     echo ${client_key} | base64 -D -o client.key > /dev/null 2>&1
 
-    sudo openvpn --client --dev tun --proto ${proto} --remote ${host} ${port} --resolv-retry infinite --nobind --persist-key --persist-tun --comp-lzo --verb 3 --ca ca.crt --cert client.crt --key client.key > /dev/null 2>&1 &
+    sudo openvpn --client --dev tun --proto ${proto} --remote ${host} ${port} --resolv-retry infinite --nobind --persist-key --persist-tun --comp-lzo --verb 3 --ca ca.crt --cert client.crt --key client.key > $log_path 2>&1 &
 
     sleep 5
 
@@ -67,8 +73,12 @@ EOF
       echo "VPN tunnel opened successfully"
       echo ""
       echo "Test VPN connection"
-      ping -c 1 -t 5 10.1.0.1
-      echo "Connection alive"
+      if ping -c 1 -t 5 10.1.0.1 ; then
+        echo "Connection alive"
+      else
+        echo "Failed to connect, error:"
+        cat $log_path
+      fi
     else
       echo "VPN opening tunnel failed!"
       exit 1
