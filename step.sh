@@ -37,6 +37,7 @@ ca ca.crt
 cert client.crt
 key client.key
 EOF
+    echo ""
 
     echo "Run openvpn"
       service openvpn start client > $log_path 2>&1
@@ -50,6 +51,7 @@ EOF
       cat "$log_path"
       exit 1
     fi
+    echo "Done"
     ;;
   darwin*)
     echo "Configuring for Mac OS"
@@ -57,6 +59,7 @@ EOF
     echo ${ca_crt} | base64 -D -o ca.crt > /dev/null 2>&1
     echo ${client_crt} | base64 -D -o client.crt > /dev/null 2>&1
     echo ${client_key} | base64 -D -o client.key > /dev/null 2>&1
+    echo ""
 
     echo "Run openvpn"
       sudo openvpn --client --dev tun --proto ${proto} --remote ${host} ${port} --resolv-retry infinite --nobind --persist-key --persist-tun --comp-lzo --verb 3 --ca ca.crt --cert client.crt --key client.key > $log_path 2>&1 &
@@ -70,6 +73,7 @@ EOF
       cat "$log_path"
       exit 1
     fi
+    echo "Done"
     ;;
   *)
     echo "Unknown operative system: $OSTYPE, exiting"
