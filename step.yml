@@ -61,6 +61,13 @@ inputs:
       value_options:
         - udp
         - tcp
+  - config: "$VPN_CONFIG"
+    opts:
+      title: "Config path"
+      summary: ""
+      is_expand: true
+      is_required: true
+      is_sensitive: true
   - ca_crt: "$VPN_CA_CRT_BASE64"
     opts:
       title: "Base64 encoded CA Certificate"

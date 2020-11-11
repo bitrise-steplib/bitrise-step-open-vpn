@@ -22,7 +22,12 @@ case "$OSTYPE" in
     echo ${client_crt} | base64 -d > /etc/openvpn/client.crt
     echo ${client_key} | base64 -d > /etc/openvpn/client.key
 
-    cat <<EOF > /etc/openvpn/client.conf
+    if [ -z $config ]; then
+      echo "Copy config"
+      cat "$config" > /etc/openvpn/client.conf
+    else
+      echo "Write config"
+      cat <<EOF > /etc/openvpn/client.conf
 client
 dev tun
 proto ${proto}
@@ -37,6 +42,7 @@ ca ca.crt
 cert client.crt
 key client.key
 EOF
+    fi
     echo ""
 
     echo "Run openvpn"
