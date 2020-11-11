@@ -52,7 +52,7 @@ EOF
 
     echo "Check status"
     sleep 5
-    if ! sudo launchctl list | grep openvpn ; then
+    if ! service --status-all | grep openvpn ; then
       echo "Process exited, error:"
       cat "$log_path"
       exit 1
