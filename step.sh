@@ -6,9 +6,9 @@ echo "Configs:"
 echo "host: $host"
 echo "port: $port"
 echo "proto: $proto"
-echo "ca_crt: $(if [ ! -z $ca_crt ]; then echo "***"; fi)"
-echo "client_crt: $(if [ ! -z $client_crt ]; then echo "***"; fi)"
-echo "client_key: $(if [ ! -z $client_key ]; then echo "***"; fi)"
+echo "ca_crt: $(if [ ! -z "$ca_crt" ]; then echo "***"; fi)"
+echo "client_crt: $(if [ ! -z "$client_crt" ]; then echo "***"; fi)"
+echo "client_key: $(if [ ! -z "$client_key" ]; then echo "***"; fi)"
 
 echo ""
 
