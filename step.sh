@@ -56,9 +56,9 @@ EOF
   darwin*)
     echo "Configuring for Mac OS"
 
-    echo ${ca_crt} | base64 -D -o ca.crt > /dev/null 2>&1
-    echo ${client_crt} | base64 -D -o client.crt > /dev/null 2>&1
-    echo ${client_key} | base64 -D -o client.key > /dev/null 2>&1
+    echo ${ca_crt} | base64 -D -o ca.crt
+    echo ${client_crt} | base64 -D -o client.crt
+    echo ${client_key} | base64 -D -o client.key
     echo ""
 
     echo "Run openvpn"
