@@ -38,23 +38,16 @@ cert client.crt
 key client.key
 EOF
 
-    service openvpn start client > $log_path 2>&1
-    sleep 5
+    echo "Run openvpn"
+      service openvpn start client > $log_path 2>&1
+    echo "Done"
+    echo ""
 
-    if ifconfig | grep tun0 > /dev/null
-    then
-      echo "VPN tunnel opened successfully"
-      echo ""
-      echo "Test VPN connection"
-      if ping -c 1 -t 5 10.1.0.1 ; then
-        echo "Connection alive"
-      else
-        echo "Failed to connect, error:"
-        cat $log_path
-        exit 1
-      fi
-    else
-      echo "VPN opening tunnel failed!"
+    echo "Check status"
+    sleep 5
+    if ! sudo launchctl list | grep openvpn ; then
+      echo "Process exited, error:"
+      cat "$log_path"
       exit 1
     fi
     ;;
@@ -65,24 +58,16 @@ EOF
     echo ${client_crt} | base64 -D -o client.crt > /dev/null 2>&1
     echo ${client_key} | base64 -D -o client.key > /dev/null 2>&1
 
-    sudo openvpn --client --dev tun --proto ${proto} --remote ${host} ${port} --resolv-retry infinite --nobind --persist-key --persist-tun --comp-lzo --verb 3 --ca ca.crt --cert client.crt --key client.key > $log_path 2>&1 &
+    echo "Run openvpn"
+      sudo openvpn --client --dev tun --proto ${proto} --remote ${host} ${port} --resolv-retry infinite --nobind --persist-key --persist-tun --comp-lzo --verb 3 --ca ca.crt --cert client.crt --key client.key > $log_path 2>&1 &
+    echo "Done"
+    echo ""
 
+    echo "Check status"
     sleep 5
-
-    if ifconfig -l | grep utun0 > /dev/null
-    then
-      echo "VPN tunnel opened successfully"
-      echo ""
-      echo "Test VPN connection"
-      if ping -c 1 -t 5 10.1.0.1 ; then
-        echo "Connection alive"
-      else
-        echo "Failed to connect, error:"
-        cat $log_path
-        exit 1
-      fi
-    else
-      echo "VPN opening tunnel failed!"
+    if ! ps -p $! >&-; then
+      echo "Process exited, error:"
+      cat "$log_path"
       exit 1
     fi
     ;;
