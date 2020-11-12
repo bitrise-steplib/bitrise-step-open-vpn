@@ -39,7 +39,7 @@ ca ca.crt
 cert client.crt
 key client.key
 EOF
-    fi
+
     echo ""
     echo "Run openvpn"
       service openvpn start client > $log_path 2>&1
