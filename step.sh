@@ -2,17 +2,19 @@
 set -eu
 
 echo "Configs:"
-
 echo "host: $host"
 echo "port: $port"
 echo "proto: $proto"
 echo "ca_crt: $(if [ ! -z "$ca_crt" ]; then echo "***"; fi)"
 echo "client_crt: $(if [ ! -z "$client_crt" ]; then echo "***"; fi)"
 echo "client_key: $(if [ ! -z "$client_key" ]; then echo "***"; fi)"
-
 echo ""
 
 log_path=$(mktemp)
+
+envman add --key "OPENVPN_LOG_PATH" --value "$log_path"
+echo "Log path exported (\$OPENVPN_LOG_PATH=$log_path)"
+echo ""
 
 case "$OSTYPE" in
   linux*)
@@ -22,12 +24,7 @@ case "$OSTYPE" in
     echo ${client_crt} | base64 -d > /etc/openvpn/client.crt
     echo ${client_key} | base64 -d > /etc/openvpn/client.key
 
-    if [ -z $config ]; then
-      echo "Copy config"
-      cat "$config" > /etc/openvpn/client.conf
-    else
-      echo "Write config"
-      cat <<EOF > /etc/openvpn/client.conf
+    cat <<EOF > /etc/openvpn/client.conf
 client
 dev tun
 proto ${proto}
@@ -44,7 +41,6 @@ key client.key
 EOF
     fi
     echo ""
-
     echo "Run openvpn"
       service openvpn start client > $log_path 2>&1
     echo "Done"
@@ -52,8 +48,8 @@ EOF
 
     echo "Check status"
     sleep 5
-    if ! service --status-all | grep openvpn ; then
-      echo "Process exited, error:"
+    if ! ifconfig | grep tun0 > /dev/null
+      echo "No open VPN tunnel found"
       cat "$log_path"
       exit 1
     fi
@@ -75,7 +71,7 @@ EOF
     echo "Check status"
     sleep 5
     if ! ps -p $! >&-; then
-      echo "Process exited, error:"
+      echo "Process exited"
       cat "$log_path"
       exit 1
     fi
