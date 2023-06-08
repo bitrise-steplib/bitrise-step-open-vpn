@@ -70,7 +70,7 @@ EOF
 
     echo "Check status"
     sleep 5
-    if ! ps -p $! >&-; then
+    if ! ps -p $! >/dev/null ; then
       echo "Process exited"
       cat "$log_path"
       exit 1
