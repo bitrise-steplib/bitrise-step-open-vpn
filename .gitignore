@@ -1,2 +1,6 @@
 .bitrise*
 .gows.user.yml
+
+# Tooling artifacts produced by the local `check`/`generate_readme` workflows
+/bin/
+README.md.backup

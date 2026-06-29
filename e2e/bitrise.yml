@@ -1,0 +1,66 @@
+format_version: "11"
+default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
+
+app:
+  envs:
+  # Public, non-secret inputs
+  - PORT: 1194
+  - PROTO: udp
+  # Secret env vars have matching key and value, resolved from the inventory
+  # (.bitrise.secrets.yml locally, GCP Secret Manager on CI).
+  - OPEN_VPN_HOST: $OPEN_VPN_HOST
+  - OPEN_VPN_CA_CRT_BASE64: $OPEN_VPN_CA_CRT_BASE64
+  - OPEN_VPN_CLIENT_CRT_BASE64: $OPEN_VPN_CLIENT_CRT_BASE64
+  - OPEN_VPN_CLIENT_KEY_BASE64: $OPEN_VPN_CLIENT_KEY_BASE64
+
+workflows:
+  test_connect_udp:
+    description: |-
+      Connects to the OpenVPN server over UDP and verifies that the
+      OPENVPN_LOG_PATH output points to an existing log file.
+    envs:
+    - PROTO: udp
+    after_run:
+    - _run
+    - _check_outputs
+
+  test_connect_tcp:
+    description: |-
+      Connects to the OpenVPN server over TCP and verifies that the
+      OPENVPN_LOG_PATH output points to an existing log file.
+    envs:
+    - PROTO: tcp
+    after_run:
+    - _run
+    - _check_outputs
+
+  _run:
+    steps:
+    - path::./:
+        title: Connect to OpenVPN Server
+        inputs:
+        - host: $OPEN_VPN_HOST
+        - port: $PORT
+        - proto: $PROTO
+        - ca_crt: $OPEN_VPN_CA_CRT_BASE64
+        - client_crt: $OPEN_VPN_CLIENT_CRT_BASE64
+        - client_key: $OPEN_VPN_CLIENT_KEY_BASE64
+
+  _check_outputs:
+    steps:
+    - script:
+        title: Verify OPENVPN_LOG_PATH output
+        inputs:
+        - content: |-
+            #!/usr/bin/env bash
+            set -euo pipefail
+
+            if [ -z "${OPENVPN_LOG_PATH:-}" ]; then
+              echo "OPENVPN_LOG_PATH output is not set"
+              exit 1
+            fi
+            if [ ! -f "$OPENVPN_LOG_PATH" ]; then
+              echo "OPENVPN_LOG_PATH ($OPENVPN_LOG_PATH) does not point to a file"
+              exit 1
+            fi
+            echo "OPENVPN_LOG_PATH is set and points to an existing file: $OPENVPN_LOG_PATH"
