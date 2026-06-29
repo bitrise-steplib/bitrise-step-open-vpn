@@ -1,7 +1,6 @@
 package openvpn
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -74,13 +73,12 @@ func TestDarwinArgs(t *testing.T) {
 	assert.Equal(t, "1194", got[remoteIdx+2])
 }
 
-func TestConnect_unsupportedOS(t *testing.T) {
-	connector := NewConnector("windows", nil, nil, nil)
-
-	err := connector.Connect(Connection{}, "")
+func TestNewConnector_unsupportedOS(t *testing.T) {
+	connector, err := NewConnector("windows", nil, nil, nil)
 
 	require.Error(t, err)
-	assert.True(t, strings.Contains(err.Error(), "unsupported operating system"))
+	assert.Nil(t, connector)
+	assert.Contains(t, err.Error(), "unsupported operating system")
 }
 
 func indexOf(s []string, v string) int {

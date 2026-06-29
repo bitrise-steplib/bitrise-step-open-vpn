@@ -22,7 +22,11 @@ func main() {
 
 func run() int {
 	logger := log.NewLogger()
-	openVPNStep := createStep(logger)
+	openVPNStep, err := createStep(logger)
+	if err != nil {
+		logger.Errorf(err.Error())
+		return 1
+	}
 
 	config, err := openVPNStep.ProcessConfig()
 	if err != nil {
@@ -52,14 +56,17 @@ func run() int {
 	return 0
 }
 
-func createStep(logger log.Logger) step.OpenVPNStep {
+func createStep(logger log.Logger) (step.OpenVPNStep, error) {
 	envRepository := env.NewRepository()
 	inputParser := stepconf.NewInputParser(envRepository)
 	cmdFactory := command.NewFactory(envRepository)
 	fileManager := fileutil.NewFileManager()
 	pathProvider := pathutil.NewPathProvider()
 	exporter := export.NewExporter(cmdFactory, fileManager)
-	connector := openvpn.NewConnector(runtime.GOOS, cmdFactory, fileManager, logger)
+	connector, err := openvpn.NewConnector(runtime.GOOS, cmdFactory, fileManager, logger)
+	if err != nil {
+		return step.OpenVPNStep{}, err
+	}
 
-	return step.NewOpenVPNStep(inputParser, logger, pathProvider, exporter, connector)
+	return step.NewOpenVPNStep(inputParser, logger, pathProvider, exporter, connector), nil
 }

@@ -12,7 +12,7 @@ The Step establishes a VPN connection with the specified OpenVPN server.
 ### Configuring the Step
 
 Before you start:
-1. Build an OpenVPN server. You can read [this article](https://www.digitalocean.com/community/tutorials/how-to-set-up-an-openvpn-server-on-ubuntu-18-04) on how to construct an OpenVPN server.
+1. Start an OpenVPN server.
 1. Register the contents of CA certificate, client certificate, client private key, base64 encoded as Bitrise Secrets.
    You can easily retrieve the contents of Base64 using command: `$ base64 <certificate or private key file path>`
 
@@ -25,9 +25,8 @@ To configure the Step:
 
 ### Useful links
 
-* [Using the Connect to OpenVPN Server Step](https://devcenter.bitrise.io/en/builds/connecting-to-a-vpn-during-a-build.html#using-the-connect-to-openvpn-server-step)
-* [How To Set Up an OpenVPN Server](https://www.digitalocean.com/community/tutorials/how-to-set-up-an-openvpn-server-on-ubuntu-18-04)
-* [Configuring network access for Bitrise build machines](https://devcenter.bitrise.io/en/infrastructure/build-machines/configuring-your-network-to-access-our-build-machines.html)
+* [Using the Connect to OpenVPN Server Step](https://docs.bitrise.io/en/bitrise-platform/integrations/connecting-to-a-vpn-during-a-build#using-the-connect-to-openvpn-server-step)
+* [Configuring network access for Bitrise build machines](https://docs.bitrise.io/en/infrastructure/build-machines/configuring-your-network-to-access-our-build-machines.html)
 
 ### Related Steps
 

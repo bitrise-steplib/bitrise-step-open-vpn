@@ -13,20 +13,13 @@ workflows:
         - workflow: e2e
 
   sample:
-    envs:
-    - HOST: $HOST
-    - PORT: 1194
-    - PROTO: udp
-    - VPN_CA_CRT_BASE64: $VPN_CA_CRT_BASE64
-    - VPN_CLIENT_CRT_BASE64: $VPN_CLIENT_CRT_BASE64
-    - VPN_CLIENT_KEY_BASE64: $VPN_CLIENT_KEY_BASE64
     steps:
     - path::./:
         title: Connect to OpenVPN Server
         inputs:
-        - host: $HOST
-        - port: $PORT
-        - proto: $PROTO
+        - host: vpn.example.com
+        - port: 1194
+        - proto: udp
         - ca_crt: $VPN_CA_CRT_BASE64
         - client_crt: $VPN_CLIENT_CRT_BASE64
         - client_key: $VPN_CLIENT_KEY_BASE64

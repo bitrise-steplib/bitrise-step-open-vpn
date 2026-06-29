@@ -141,7 +141,9 @@ func (s OpenVPNStep) createLogPath() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("create temp dir for log: %w", err)
 	}
-	return filepath.Join(tmpDir, "openvpn.log"), nil
+	logPath := filepath.Join(tmpDir, "openvpn.log")
+	s.logger.Printf("Log path: %s", logPath)
+	return logPath, nil
 }
 
 // decodeBase64 decodes a base64-encoded secret, tolerating surrounding
