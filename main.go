@@ -63,7 +63,7 @@ func createStep(logger log.Logger) (step.OpenVPNStep, error) {
 	fileManager := fileutil.NewFileManager()
 	pathProvider := pathutil.NewPathProvider()
 	exporter := export.NewExporter(cmdFactory, fileManager)
-	connector, err := openvpn.NewConnector(runtime.GOOS, cmdFactory, fileManager, logger)
+	connector, err := openvpn.NewConnector(runtime.GOOS, cmdFactory, fileManager, pathProvider, logger)
 	if err != nil {
 		return step.OpenVPNStep{}, err
 	}

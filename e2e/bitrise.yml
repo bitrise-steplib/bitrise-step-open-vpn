@@ -15,6 +15,36 @@ app:
   - VPN_SERVER_TUNNEL_IP: 198.51.100.1
 
 step_bundles:
+  install_openvpn:
+    steps:
+    - script:
+        title: Install openvpn
+        inputs:
+        - content: |-
+            #!/usr/bin/env bash
+            set -euo pipefail
+
+            # The Step installs openvpn as a dep, but the loopback server in
+            # setup_server starts before the Step runs, so it must be present
+            # up front. Pick the package manager based on the OS.
+            if command -v openvpn >/dev/null 2>&1; then
+              echo "openvpn is already installed"
+              exit 0
+            fi
+
+            case "$(uname -s)" in
+            Linux)
+              sudo apt-get update -qq && sudo apt-get install -y -qq openvpn
+              ;;
+            Darwin)
+              brew install openvpn
+              ;;
+            *)
+              echo "Unsupported OS: $(uname -s)"
+              exit 1
+              ;;
+            esac
+
   setup_server:
     steps:
     - script:
@@ -124,6 +154,7 @@ workflows:
     envs:
     - PROTO: udp
     steps:
+    - bundle::install_openvpn: { }
     - bundle::setup_server: { }
     - bundle::connect: { }
     - bundle::verify: { }
@@ -135,6 +166,7 @@ workflows:
     envs:
     - PROTO: tcp
     steps:
+    - bundle::install_openvpn: { }
     - bundle::setup_server: { }
     - bundle::connect: { }
     - bundle::verify: { }
