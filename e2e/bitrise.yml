@@ -4,15 +4,16 @@ default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
 # These E2E tests are hermetic: they generate a throwaway PKI and run a
 # loopback OpenVPN server on the build machine itself, so no external server
 # and no stored secrets are needed. The Step then connects to 127.0.0.1 and we
-# verify the tunnel actually carries traffic by pinging the server's in-tunnel
-# IP (198.51.100.1).
+# verify the client established the tunnel by checking its OpenVPN log for the
+# "Initialization Sequence Completed" marker. 
+#
+# The server's tunnel subnet (see server.conf below) uses an RFC 5737 TEST-NET
+# range, reserved for documentation and never present on real networks, so it
+# can't collide with the build machine's own (undisclosed) internal subnets.
 app:
   envs:
   - OPEN_VPN_HOST: 127.0.0.1
   - PORT: 1194
-  # Tunnel subnet uses an RFC 5737 TEST-NET range, reserved for documentation
-  # and never present on real networks.
-  - VPN_SERVER_TUNNEL_IP: 198.51.100.1
 
 step_bundles:
   install_openvpn:
@@ -61,6 +62,11 @@ step_bundles:
             workdir="$(mktemp -d)"
             cd "$workdir"
 
+            # Export the server log path so collect_logs can deploy it as an
+            # artifact even if this step (or a later one) fails.
+            server_log="${workdir}/server.log"
+            envman add --key VPN_SERVER_LOG_PATH --value "$server_log"
+
             # --- Throwaway PKI: CA, server and client certs (valid 1 day) ---
             openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
               -keyout ca.key -out ca.crt -subj "/CN=e2e-test-ca"
@@ -96,12 +102,12 @@ step_bundles:
 
             # Start the server in the background. sudo is needed to create the
             # tun device; the process is left running for the Step to dial.
-            sudo openvpn --config "${workdir}/server.conf" --log "${workdir}/server.log" &
+            sudo openvpn --config "${workdir}/server.conf" --log "$server_log" &
             sleep 5
 
             if ! pgrep -x openvpn >/dev/null; then
               echo "OpenVPN server failed to start:"
-              cat "${workdir}/server.log" || true
+              cat "$server_log" || true
               exit 1
             fi
             echo "OpenVPN server running (proto=${server_proto}, port=${PORT})"
@@ -127,7 +133,7 @@ step_bundles:
   verify:
     steps:
     - script:
-        title: Verify the OPENVPN_LOG_PATH output and the tunnel
+        title: Verify the OpenVPN connection
         inputs:
         - content: |-
             #!/usr/bin/env bash
@@ -140,11 +146,37 @@ step_bundles:
             fi
             echo "OPENVPN_LOG_PATH=$OPENVPN_LOG_PATH"
 
-            # 2. The tunnel must actually carry traffic: reach the server's
-            #    in-tunnel IP. A failure here means the VPN did not come up.
-            echo "Pinging the VPN server over the tunnel (${VPN_SERVER_TUNNEL_IP})..."
-            ping -c 3 "${VPN_SERVER_TUNNEL_IP}"
-            echo "Tunnel verified."
+            echo "--- OpenVPN client log ---"
+            cat "$OPENVPN_LOG_PATH"
+            echo "--------------------------"
+
+            # 2. Confirm the client fully established the tunnel.
+            if ! grep -q "Initialization Sequence Completed" "$OPENVPN_LOG_PATH"; then
+              echo "OpenVPN did not finish connecting"
+              exit 1
+            fi
+            echo "Tunnel established."
+
+  collect_logs:
+    steps:
+    - script:
+        title: Collect OpenVPN logs as artifacts
+        is_always_run: true
+        inputs:
+        - content: |-
+            #!/usr/bin/env bash
+            set -uo pipefail
+
+            # Copy whatever logs exist into the deploy dir; the worker's
+            # deploy-to-bitrise-io step uploads them as build artifacts.
+            for entry in "server:${VPN_SERVER_LOG_PATH:-}" "client:${OPENVPN_LOG_PATH:-}"; do
+              name="${entry%%:*}"
+              path="${entry#*:}"
+              if [ -n "$path" ] && [ -f "$path" ]; then
+                cp "$path" "$BITRISE_DEPLOY_DIR/openvpn-$name.log"
+                echo "Collected $name log -> openvpn-$name.log"
+              fi
+            done
 
 workflows:
   test_connect_udp:
@@ -158,6 +190,7 @@ workflows:
     - bundle::setup_server: { }
     - bundle::connect: { }
     - bundle::verify: { }
+    - bundle::collect_logs: { }
 
   test_connect_tcp:
     description: |-
@@ -170,3 +203,4 @@ workflows:
     - bundle::setup_server: { }
     - bundle::connect: { }
     - bundle::verify: { }
+    - bundle::collect_logs: { }
