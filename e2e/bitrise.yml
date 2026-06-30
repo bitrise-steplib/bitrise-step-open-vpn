@@ -161,12 +161,12 @@ step_bundles:
             # the server's in-tunnel address (.1 of the server's subnet, see
             # setup_server).
             server_tunnel_ip="198.51.100.1"
-            
+
             case "$(uname -s)" in
             Darwin) ping_timeout=5000 ;;
             *)      ping_timeout=5 ;;
             esac
-            
+
             echo "Pinging server over the tunnel ($server_tunnel_ip)"
             if ! ping -c 3 -W "$ping_timeout" "$server_tunnel_ip"; then
               echo "Tunnel is up but no traffic reached $server_tunnel_ip"
