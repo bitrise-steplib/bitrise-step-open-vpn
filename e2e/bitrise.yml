@@ -5,7 +5,7 @@ default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
 # loopback OpenVPN server on the build machine itself, so no external server
 # and no stored secrets are needed. The Step then connects to 127.0.0.1 and we
 # verify the client established the tunnel by checking its OpenVPN log for the
-# "Initialization Sequence Completed" marker. 
+# "Initialization Sequence Completed" marker.
 #
 # The server's tunnel subnet (see server.conf below) uses an RFC 5737 TEST-NET
 # range, reserved for documentation and never present on real networks, so it
