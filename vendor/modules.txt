@@ -18,17 +18,11 @@ github.com/bitrise-io/go-utils/v2/log/colorstring
 github.com/bitrise-io/go-utils/v2/parseutil
 github.com/bitrise-io/go-utils/v2/pathutil
 github.com/bitrise-io/go-utils/v2/retryhttp
-# github.com/davecgh/go-spew v1.1.1
-## explicit
 # github.com/hashicorp/go-cleanhttp v0.5.2
 ## explicit; go 1.13
 github.com/hashicorp/go-cleanhttp
 # github.com/hashicorp/go-retryablehttp v0.7.7
 ## explicit; go 1.19
 github.com/hashicorp/go-retryablehttp
-# github.com/pmezard/go-difflib v1.0.0
-## explicit
 # github.com/stretchr/testify v1.11.1
 ## explicit; go 1.17
-# gopkg.in/yaml.v3 v3.0.1
-## explicit
