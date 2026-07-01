@@ -1,0 +1,230 @@
+format_version: "13"
+default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
+
+# These E2E tests are hermetic: they generate a throwaway PKI and run a
+# loopback OpenVPN server on the build machine itself, so no external server
+# and no stored secrets are needed. The Step then connects to 127.0.0.1 and we
+# verify the client established the tunnel by checking its OpenVPN log for the
+# "Initialization Sequence Completed" marker.
+#
+# The server's tunnel subnet (see server.conf below) uses an RFC 5737 TEST-NET
+# range, reserved for documentation and never present on real networks, so it
+# can't collide with the build machine's own (undisclosed) internal subnets.
+app:
+  envs:
+  - OPEN_VPN_HOST: 127.0.0.1
+  - PORT: 1194
+
+step_bundles:
+  install_dependencies:
+    steps:
+    - script:
+        title: Install dependencies
+        inputs:
+        - content: |-
+            #!/usr/bin/env bash
+            set -euo pipefail
+            case "$(uname -s)" in
+            Linux)
+              pkgs=()
+              command -v openvpn >/dev/null 2>&1 || pkgs+=(openvpn)
+              command -v ping    >/dev/null 2>&1 || pkgs+=(iputils-ping)
+              if [ "${#pkgs[@]}" -gt 0 ]; then
+                sudo apt-get update -qq && sudo apt-get install -y -qq "${pkgs[@]}"
+              else
+                echo "openvpn and ping already installed"
+              fi
+              ;;
+            Darwin)
+              if command -v openvpn >/dev/null 2>&1; then
+                echo "openvpn is already installed"
+              else
+                brew install openvpn
+              fi
+              ;;
+            *)
+              echo "Unsupported OS: $(uname -s)"
+              exit 1
+              ;;
+            esac
+
+  setup_server:
+    steps:
+    - script:
+        title: Generate PKI and start a loopback OpenVPN server
+        inputs:
+        - content: |-
+            #!/usr/bin/env bash
+            set -euo pipefail
+
+            # Clear any OpenVPN left running by a previous test case in this VM.
+            sudo pkill openvpn 2>/dev/null || true
+            sleep 1
+
+            workdir="$(mktemp -d)"
+            cd "$workdir"
+
+            # Export the server log path so collect_logs can deploy it as an
+            # artifact even if this step (or a later one) fails.
+            server_log="${workdir}/server.log"
+            envman add --key VPN_SERVER_LOG_PATH --value "$server_log"
+
+            # --- Throwaway PKI: CA, server and client certs (valid 1 day) ---
+            openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
+              -keyout ca.key -out ca.crt -subj "/CN=e2e-test-ca"
+
+            gen_cert() {
+              openssl req -newkey rsa:2048 -nodes -keyout "$1.key" -out "$1.csr" -subj "/CN=$1"
+              openssl x509 -req -in "$1.csr" -CA ca.crt -CAkey ca.key -CAcreateserial \
+                -out "$1.crt" -days 1
+            }
+            gen_cert server
+            gen_cert client
+
+            # OpenVPN server uses tcp-server for TCP, udp for UDP.
+            server_proto="udp"
+            [ "$PROTO" = "tcp" ] && server_proto="tcp-server"
+
+            cat > server.conf <<EOF
+            dev tun
+            topology subnet
+            proto ${server_proto}
+            port ${PORT}
+            local 127.0.0.1
+            ca ${workdir}/ca.crt
+            cert ${workdir}/server.crt
+            key ${workdir}/server.key
+            dh none
+            server 198.51.100.0 255.255.255.0
+            keepalive 10 60
+            comp-lzo
+            allow-compression yes
+            verb 3
+            EOF
+
+            # Start the server in the background. sudo is needed to create the
+            # tun device; the process is left running for the Step to dial.
+            sudo openvpn --config "${workdir}/server.conf" --log "$server_log" &
+            sleep 5
+
+            if ! pgrep -x openvpn >/dev/null; then
+              echo "OpenVPN server failed to start:"
+              cat "$server_log" || true
+              exit 1
+            fi
+            echo "OpenVPN server running (proto=${server_proto}, port=${PORT})"
+
+            # Hand the client credentials to the Step under test as base64.
+            # The Step strips whitespace before decoding, so wrapping is fine.
+            envman add --key VPN_CA_CRT_BASE64     --value "$(base64 < ca.crt | tr -d '\n')"
+            envman add --key VPN_CLIENT_CRT_BASE64 --value "$(base64 < client.crt | tr -d '\n')"
+            envman add --key VPN_CLIENT_KEY_BASE64 --value "$(base64 < client.key | tr -d '\n')"
+
+  connect:
+    steps:
+    - path::./:
+        title: Connect to OpenVPN Server
+        inputs:
+        - host: $OPEN_VPN_HOST
+        - port: $PORT
+        - proto: $PROTO
+        - ca_crt: $VPN_CA_CRT_BASE64
+        - client_crt: $VPN_CLIENT_CRT_BASE64
+        - client_key: $VPN_CLIENT_KEY_BASE64
+
+  verify:
+    steps:
+    - script:
+        title: Verify the OpenVPN connection
+        inputs:
+        - content: |-
+            #!/usr/bin/env bash
+            set -euo pipefail
+
+            # 1. The Step must export a log file path.
+            if [ -z "${OPENVPN_LOG_PATH:-}" ] || [ ! -f "$OPENVPN_LOG_PATH" ]; then
+              echo "OPENVPN_LOG_PATH is not set or does not point to a file"
+              exit 1
+            fi
+            echo "OPENVPN_LOG_PATH=$OPENVPN_LOG_PATH"
+
+            echo "--- OpenVPN client log ---"
+            cat "$OPENVPN_LOG_PATH"
+            echo "--------------------------"
+
+            # 2. Confirm the client fully established the tunnel.
+            if ! grep -q "Initialization Sequence Completed" "$OPENVPN_LOG_PATH"; then
+              echo "OpenVPN did not finish connecting"
+              exit 1
+            fi
+            echo "Tunnel established."
+
+            # 3. Confirm traffic actually flows through the tunnel by reaching
+            # the server's in-tunnel address (.1 of the server's subnet, see
+            # setup_server).
+            #
+            # This check only runs on Linux. On macOS the tunnel is a "utun"
+            # point-to-point device, so OpenVPN's subnet topology configures the
+            # client end with local == peer (198.51.100.2 198.51.100.2) and the
+            # server's .1 gateway is never reachable/answered the way it is on a
+            # Linux subnet "tun" device. The ping would always time out there
+            # even though the tunnel is healthy, so we skip it on macOS.
+            if [ "$(uname -s)" = "Darwin" ]; then
+              echo "Skipping in-tunnel ping check on macOS (utun is point-to-point)."
+            else
+              server_tunnel_ip="198.51.100.1"
+              echo "Pinging server over the tunnel ($server_tunnel_ip)"
+              if ! ping -c 3 -W 5 "$server_tunnel_ip"; then
+                echo "Tunnel is up but no traffic reached $server_tunnel_ip"
+                exit 1
+              fi
+              echo "Traffic flows through the tunnel."
+            fi
+
+  collect_logs:
+    steps:
+    - script:
+        title: Collect OpenVPN logs as artifacts
+        is_always_run: true
+        inputs:
+        - content: |-
+            #!/usr/bin/env bash
+            set -uo pipefail
+
+            # Copy whatever logs exist into the deploy dir; the worker's
+            # deploy-to-bitrise-io step uploads them as build artifacts.
+            for entry in "server:${VPN_SERVER_LOG_PATH:-}" "client:${OPENVPN_LOG_PATH:-}"; do
+              name="${entry%%:*}"
+              path="${entry#*:}"
+              if [ -n "$path" ] && [ -f "$path" ]; then
+                cp "$path" "$BITRISE_DEPLOY_DIR/openvpn-$name.log"
+                echo "Collected $name log -> openvpn-$name.log"
+              fi
+            done
+
+workflows:
+  test_connect_udp:
+    description: |-
+      Generates a throwaway PKI, starts a loopback OpenVPN server over UDP,
+      connects to it with the Step and verifies the tunnel carries traffic.
+    envs:
+    - PROTO: udp
+    steps:
+    - bundle::install_dependencies: { }
+    - bundle::setup_server: { }
+    - bundle::connect: { }
+    - bundle::verify: { }
+    - bundle::collect_logs: { }
+
+  test_connect_tcp:
+    description: |-
+      Generates a throwaway PKI, starts a loopback OpenVPN server over TCP,
+      connects to it with the Step and verifies the tunnel carries traffic.
+    envs:
+    - PROTO: tcp
+    steps:
+    - bundle::install_dependencies: { }
+    - bundle::setup_server: { }
+    - bundle::connect: { }
+    - bundle::verify: { }
+    - bundle::collect_logs: { }

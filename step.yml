@@ -1,14 +1,13 @@
 title: |-
   Connect to OpenVPN Server
-summary: |
-  Establish a VPN connection with the specified OpenVPN server.
+summary: Establish a VPN connection with the specified OpenVPN server.
 description: |
   The Step establishes a VPN connection with the specified OpenVPN server.
 
   ### Configuring the Step
 
   Before you start:
-  1. Build an OpenVPN server. You can read [this article](https://www.digitalocean.com/community/tutorials/how-to-set-up-an-openvpn-server-on-ubuntu-18-04) on how to construct an OpenVPN server.
+  1. Start an OpenVPN server.
   1. Register the contents of CA certificate, client certificate, client private key, base64 encoded as Bitrise Secrets.
      You can easily retrieve the contents of Base64 using command: `$ base64 <certificate or private key file path>`
 
@@ -21,9 +20,8 @@ description: |
 
   ### Useful links
 
-  * [Using the Connect to OpenVPN Server Step](https://devcenter.bitrise.io/en/builds/connecting-to-a-vpn-during-a-build.html#using-the-connect-to-openvpn-server-step)
-  * [How To Set Up an OpenVPN Server](https://www.digitalocean.com/community/tutorials/how-to-set-up-an-openvpn-server-on-ubuntu-18-04)
-  * [Configuring network access for Bitrise build machines](https://devcenter.bitrise.io/en/infrastructure/build-machines/configuring-your-network-to-access-our-build-machines.html)
+  * [Using the Connect to OpenVPN Server Step](https://docs.bitrise.io/en/bitrise-platform/integrations/connecting-to-a-vpn-during-a-build#using-the-connect-to-openvpn-server-step)
+  * [Configuring network access for Bitrise build machines](https://docs.bitrise.io/en/infrastructure/build-machines/configuring-your-network-to-access-our-build-machines.html)
 
   ### Related Steps
 
@@ -34,7 +32,7 @@ source_code_url: https://github.com/bitrise-steplib/bitrise-step-open-vpn
 support_url: https://github.com/bitrise-steplib/bitrise-step-open-vpn/issues
 
 type_tags:
-  - access-control
+- access-control
 
 is_requires_admin_user: true
 is_always_run: false
@@ -43,63 +41,67 @@ run_if: ""
 
 deps:
   brew:
-    - name: openvpn
+  - name: openvpn
   apt_get:
-    - name: openvpn
-    - name: net-tools
+  - name: openvpn
+  - name: net-tools
 
 toolkit:
-  bash:
-    entry_file: step.sh
+  go:
+    package_name: github.com/bitrise-steplib/bitrise-step-open-vpn
 
 inputs:
-  - host:
-    opts:
-      title: "Host"
-      summary: "Open VPN Server IP or Hostname"
-      description: |
-        Open VPN Server IP or Hostname.
-        ex1. 111.111.111.111
-        ex2. hoge.com
-      is_expand: true
-      is_required: true
-  - port: 1194
-    opts:
-      title: "Port"
-      summary: "Open VPN Server Port number"
-      is_expand: true
-      is_required: true
-  - proto: udp
-    opts:
-      title: "Protocol"
-      summary: "Open VPN Server Protocol"
-      is_expand: true
-      is_required: true
-      value_options:
-        - udp
-        - tcp
-  - ca_crt: "$VPN_CA_CRT_BASE64"
-    opts:
-      title: "Base64 encoded CA Certificate"
-      summary: "Base64 encoded CA Certificate"
-      is_expand: true
-      is_required: true
-      is_sensitive: true
-  - client_crt: "$VPN_CLIENT_CRT_BASE64"
-    opts:
-      title: "Base64 encoded Client Certificate"
-      summary: "Base64 encoded Client Certificate"
-      is_expand: true
-      is_required: true
-      is_sensitive: true
-  - client_key: "$VPN_CLIENT_KEY_BASE64"
-    opts:
-      title: "Base64 encoded Client Private Key"
-      summary: "Base64 encoded Client Private Key"
-      is_expand: true
-      is_required: true
-      is_sensitive: true
+- host:
+  opts:
+    title: Host
+    summary: Open VPN Server IP or Hostname
+    description: |
+      Open VPN Server IP or Hostname.
+      ex1. 111.111.111.111
+      ex2. hoge.com
+    is_expand: true
+    is_required: true
+- port: "1194"
+  opts:
+    title: Port
+    summary: Open VPN Server Port number
+    is_expand: true
+    is_required: true
+- proto: udp
+  opts:
+    title: Protocol
+    summary: Open VPN Server Protocol
+    is_expand: true
+    is_required: true
+    value_options:
+    - udp
+    - tcp
+- ca_crt: $VPN_CA_CRT_BASE64
+  opts:
+    title: Base64 encoded CA Certificate
+    summary: Base64 encoded CA Certificate
+    is_expand: true
+    is_required: true
+    is_sensitive: true
+- client_crt: $VPN_CLIENT_CRT_BASE64
+  opts:
+    title: Base64 encoded Client Certificate
+    summary: Base64 encoded Client Certificate
+    is_expand: true
+    is_required: true
+    is_sensitive: true
+- client_key: $VPN_CLIENT_KEY_BASE64
+  opts:
+    title: Base64 encoded Client Private Key
+    summary: Base64 encoded Client Private Key
+    is_expand: true
+    is_required: true
+    is_sensitive: true
 outputs:
-  - OPENVPN_LOG_PATH:
-    opts:
-      title: "Output log file path"
+- OPENVPN_LOG_PATH:
+  opts:
+    title: Output log file path
+    summary: Path to the file containing the OpenVPN process log.
+    description: |
+      Path to the file containing the output (stdout and stderr) of the
+      OpenVPN process. Useful for debugging connection issues.
